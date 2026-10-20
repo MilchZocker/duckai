@@ -40,8 +40,6 @@ The server will be available at `http://localhost:3000`.
 
 The upstream image `amirkabiri/duckai` is still available on Docker Hub, but it does not contain the features listed above.
 
-Docker image URL: [https://hub.docker.com/r/cobbdzon/duckai/](https://hub.docker.com/r/cobbdzon/duckai/)
-
 ### Option 2: Docker Compose
 
 ```bash
