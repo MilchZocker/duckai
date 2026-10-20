@@ -39,6 +39,10 @@ const DEFAULT_DUCKAI_MODELS: Record<string, ModelDefaults> = {
     reasoning_effort: "none",
     valid_reasoning_efforts: ["none", "low"],
   },
+  "gpt-6-luna": {
+    reasoning_effort: "low",
+    valid_reasoning_efforts: ["low"],
+  },
   "mistral-small-2603": {},
 };
 
