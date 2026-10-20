@@ -642,7 +642,7 @@ Please follow these instructions when responding to the following user message.`
     }
 
     return {
-      model: request.model || "mistralai/Mistral-Small-24B-Instruct-2501",
+      model: request.model || "gpt-6-luna",
       messages: request.messages,
       metadata: metadata,
       temperature: request.temperature,

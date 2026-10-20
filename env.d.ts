@@ -8,6 +8,7 @@ declare module "bun" {
     X_MODELS_JSON: string;
     X_EMIT_REASONING: string;
     PORT: number;
+    HOST: string;
     NODE_ENV: "development" | "production";
   }
   1;

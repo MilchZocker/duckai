@@ -4,6 +4,7 @@ const openAIService = new OpenAIService();
 
 const server = Bun.serve({
   port: process.env.PORT || 3000,
+  hostname: process.env.HOST || "0.0.0.0",
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -119,5 +120,5 @@ console.log(
 );
 console.log(`  -H "Content-Type: application/json" \\`);
 console.log(
-  `  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello!"}]}'`,
+  `  -d '{"model":"gpt-6-luna","messages":[{"role":"user","content":"Hello!"}]}'`,
 );

@@ -553,7 +553,7 @@ export class DuckAI {
     request: ChatCompletionRequest,
   ): DuckAIRequest {
     // Use the model from request, fallback to default
-    const model = request.model || "gpt-5-mini";
+    const model = request.model || "gpt-6-luna";
 
     if (!(model in DUCKAI_MODELS)) {
       throw new Error(
@@ -627,16 +627,24 @@ export class DuckAI {
     }
 
     // validate reasoning effort
+    const modelDefaults = DUCKAI_MODELS[model];
+    const validReasoningEfforts = modelDefaults.valid_reasoning_efforts;
+
+    // models that do not declare a reasoning effort (e.g. mistral-small-2603)
+    // do not get one, even when the client asks for it
     const reasoning_effort =
-      request.reasoning_effort || DUCKAI_MODELS[model].reasoning_effort;
+      validReasoningEfforts !== undefined
+        ? request.reasoning_effort || modelDefaults.reasoning_effort
+        : undefined;
 
     if (
-      DUCKAI_MODELS[model].valid_reasoning_efforts != undefined &&
-      !DUCKAI_MODELS[model].valid_reasoning_efforts?.includes(reasoning_effort)
+      validReasoningEfforts !== undefined &&
+      reasoning_effort !== undefined &&
+      !validReasoningEfforts.includes(reasoning_effort)
     ) {
       throw new Error(
         `Model ${model} does not support this reasoning effort (${reasoning_effort}),
-        valid reasoning efforts: ${(DUCKAI_MODELS[model].valid_reasoning_efforts || []).join(", ")}`,
+        valid reasoning efforts: ${validReasoningEfforts.join(", ")}`,
       );
     }
 
