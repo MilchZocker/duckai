@@ -220,7 +220,7 @@ export class DuckAI {
     }
   }
 
-  private async getEncodedVqdHash(vqdHash: string): Promise<string> {
+  private async getEncodedVqdHash(vqdHash: string): Promise<VQDResponse> {
     const jsScript = atob(vqdHash);
     const response = await fetch('https://duck.ai/');
     if (!response.ok) throw new Error(`[getEncodedVqdHash] HTTP ${response.status}`);
@@ -233,7 +233,9 @@ export class DuckAI {
     const { window } = dom;
     
     const version = window.document.documentElement.getAttribute('data-version-tag');
+    if (!version) throw new Error("[getEncodedVqdHash] No version tag found");
     const sha = window.document.documentElement.getAttribute('data-version-sha');
+    if (!sha) throw new Error("[getEncodedVqdHash] No version sha found");
     
     dom.window.top.__DDG_BE_VERSION__ = version;
     dom.window.top.__DDG_FE_CHAT_HASH__ = sha;
@@ -270,7 +272,7 @@ export class DuckAI {
       (result.meta as any).duration = duration;
     }
 
-    return btoa(JSON.stringify(result));
+    return { hash: btoa(JSON.stringify(result)), version: `${version}-${sha}` };
   }
 
   private async getVQD(userAgent: string): Promise<VQDResponse> {
@@ -306,9 +308,7 @@ export class DuckAI {
       throw new Error(`Missing VQD headers: hash=${!!hashHeader}`);
     }
 
-    const encodedHash = await this.getEncodedVqdHash(hashHeader);
-
-    return { hash: encodedHash };
+    return await this.getEncodedVqdHash(hashHeader);
   }
 
   private async hashClientHashes(clientHashes: string[]): Promise<string[]> {
@@ -344,7 +344,6 @@ export class DuckAI {
       basedelta[2] + Math.ceil(Math.random() * 39520 + 11111)
     }}`;
     // console.log(`Using x-fe-signals: ${fesig} : ${btoa(fesig)}
-    // x-fe-version: ${process.env.X_FE_VERSION}
     // x-vqd-hash-1: ${vqd.hash}`);
 
     return await fetch("https://duck.ai/duckchat/v1/chat", {
@@ -354,7 +353,7 @@ export class DuckAI {
         "content-type": "application/json",
         "priority": "u=1, i",
         "x-fe-signals": btoa(fesig),
-        "x-fe-version": process.env.X_FE_VERSION,
+        "x-fe-version": vqd.version,
         "User-Agent": userAgent,
         "x-vqd-hash-1": vqd.hash,
         "Referer": "https://duck.ai/"

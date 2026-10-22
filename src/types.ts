@@ -149,6 +149,7 @@ export interface ModelsResponse {
 export interface VQDResponse {
   // vqd: string; // looks unused to me
   hash: string;
+  version: string;
 }
 
 export interface DuckAIMetadata {
