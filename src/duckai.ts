@@ -377,7 +377,6 @@ export class DuckAI {
       vqd,
     );
     var currentAttempt = attempt || 0;
-    // First attempt always 418, maybe vqd hash is wrong, but why?
     if (response.status == 418 && currentAttempt < 5) {
       const waitTime = currentAttempt + 1;
       console.warn(`⚠️ Encountered error 418, waiting for ${waitTime} seconds before refetching. Attempt: ${currentAttempt + 1}`)
@@ -675,7 +674,7 @@ export class DuckAI {
       messages: transformedMessages,
       metadata: request.metadata,
       model,
-      reasoningEffort: 'none',//reasoning_effort,
+      reasoningEffort: reasoning_effort,
       durableStream: {
         conversationId: crypto.randomUUID(),
         messageId: crypto.randomUUID(),
