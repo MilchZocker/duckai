@@ -79,6 +79,15 @@ bun run dev
 
 The server will start on `http://localhost:3000` by default.
 
+### Option 4: Native binary + systemd user service (Arch Linux)
+
+```bash
+bun build --compile --target=bun-linux-x64 src/server.ts --outfile ~/.local/bin/duckai
+```
+
+See [Installing on Arch Linux](#installing-on-arch-linux) for the full setup,
+including the systemd unit.
+
 ### Basic Usage Example
 
 ```javascript
@@ -99,6 +108,171 @@ const completion = await openai.chat.completions.create({
 
 console.log(completion.choices[0].message.content);
 ```
+
+## Installing on Arch Linux
+
+This compiles the server into a single self-contained binary and runs it as a
+[systemd user service](https://wiki.archlinux.org/title/Systemd/User).
+
+### 1. Prerequisites
+
+```bash
+sudo pacman -S --needed git
+yay -S bun-bin
+```
+
+`bun-bin` (AUR) installs `/usr/bin/bun`. The official installer
+(`curl -fsSL https://bun.sh/install | bash`) puts it in `~/.bun/bin` instead.
+Bun is only needed to build the binary — the compiled binary carries its own
+runtime and does not need Bun installed.
+
+### 2. Compile the binary
+
+```bash
+git clone https://github.com/cobbdzon/duckai.git
+cd duckai
+bun install --frozen-lockfile
+bun build --compile --target=bun-linux-x64 src/server.ts --outfile ~/.local/bin/duckai
+```
+
+`--compile` bundles the Bun runtime together with `jsdom`, `openai` and
+`user-agents` into one executable (~75 MB, ~72 MB with `--minify`). Writing
+the output straight to `~/.local/bin` keeps the clone free of build artifacts.
+
+For other architectures use `--target=bun-linux-aarch64` (ARM) or
+`--target=bun-linux-x64-musl` (Alpine/musl).
+
+### 3. Configure
+
+```bash
+mkdir -p ~/.config/duckai
+cp .env.example ~/.config/duckai/duckai.env
+chmod 600 ~/.config/duckai/duckai.env
+$EDITOR ~/.config/duckai/duckai.env
+```
+
+Fill in `X_FE_SIGNALS`, `X_FE_VERSION` and `X_VQD_STACK` as described in
+[Capturing the DuckDuckGo headers](#capturing-the-duckduckgo-headers). The
+example ships `HOST=0.0.0.0`; set it to `127.0.0.1` to keep the server
+reachable from localhost only.
+
+This file is parsed by systemd, not by a shell, so the syntax differs slightly
+from the `.env` file used by Docker:
+
+- No `export` prefix.
+- Values containing spaces have to be quoted.
+- Single quotes keep a value completely literal. That matters for
+  `X_MODELS_JSON`, which contains JSON quotes:
+  `X_MODELS_JSON='{"my-model":{"reasoning_effort":"none"}}'`.
+
+Variables set here override the ones set in the unit file.
+
+### 4. Install the unit
+
+```bash
+mkdir -p ~/.local/share/duckai ~/.config/systemd/user
+
+cat > ~/.config/systemd/user/duckai.service <<'EOF'
+[Unit]
+Description=DuckAI OpenAI-compatible server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/duckai
+WorkingDirectory=%h/.local/share/duckai
+EnvironmentFile=-%h/.config/duckai/duckai.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOST=127.0.0.1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+```
+
+`%h` expands to your home directory. The `Environment=` lines are fallbacks for
+when `duckai.env` is missing — the env file wins, so `HOST` and `PORT` are
+taken from `duckai.env`. The `-` in front of the `EnvironmentFile=` path makes
+the file optional.
+
+### 5. Start it
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now duckai.service
+```
+
+User services start with your session. To also start them at boot without
+logging in, enable lingering:
+
+```bash
+loginctl enable-linger $USER
+```
+
+### 6. Verify
+
+```bash
+curl -s http://127.0.0.1:3000/health
+# {"status":"ok"}
+
+curl -s http://127.0.0.1:3000/v1/models
+
+systemctl --user status duckai
+journalctl --user -u duckai -f
+```
+
+### Updating
+
+```bash
+cd duckai
+git pull
+bun install --frozen-lockfile
+bun build --compile --target=bun-linux-x64 src/server.ts --outfile ~/.local/bin/duckai.new
+mv ~/.local/bin/duckai.new ~/.local/bin/duckai
+systemctl --user restart duckai
+```
+
+Building to a temporary name and renaming it avoids replacing a binary that is
+currently running.
+
+### Uninstalling
+
+```bash
+systemctl --user disable --now duckai.service
+rm ~/.config/systemd/user/duckai.service
+rm ~/.config/duckai/duckai.env
+rm ~/.local/bin/duckai
+systemctl --user daemon-reload
+```
+
+### Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `418 I'm a teapot` in the logs | `X_FE_SIGNALS`, `X_FE_VERSION` or `X_VQD_STACK` are stale. Capture them again from a live duck.ai session. |
+| `Failed to start server. Is port 3000 in use?` | Another process holds the port. Change `PORT` in `duckai.env` and restart the unit. |
+| The unit fails to start | `journalctl --user -u duckai -n 50` shows the reason. A missing binary shows up as `status=203/EXEC`. |
+| Configuration changes have no effect | The env file is read when the service starts. Run `systemctl --user restart duckai`. |
+
+### Running from source instead
+
+If you would rather not compile anything, run the server with Bun directly.
+`~/.bun/bin` is not on the `PATH` of the systemd user manager, so use the
+absolute path to the `bun` binary:
+
+```ini
+[Service]
+Type=simple
+ExecStart=/home/%u/.bun/bin/bun run /home/%u/duckai/src/server.ts
+WorkingDirectory=%h/duckai
+```
+
+Bun loads `duckai/.env` automatically in this setup, so keep the configuration
+in the clone instead of `~/.config/duckai/duckai.env`.
 
 ## Configuration
 
