@@ -152,11 +152,11 @@ export interface VQDResponse {
 }
 
 export interface DuckAIMetadata {
-  customization: {
+  customization?: {
     additionalInstructions: string;
     shouldSeekClarity: boolean;
   };
-  toolChoice: {
+  toolChoice?: {
     NewsSearch: boolean;
     VideosSearch: boolean;
     LocalSearch: boolean;
@@ -170,6 +170,11 @@ export interface DuckAIRequest {
   metadata?: DuckAIMetadata;
   reasoningEffort?: DuckAIReasoningEffort;
   canUseTools: boolean;
+  durableStream: {
+    conversationId: string;
+    messageId: string;
+    publicKey: object; // STREAMING_PUBLIC_KEY
+  };
 }
 
 export interface DuckAIChatResult {
