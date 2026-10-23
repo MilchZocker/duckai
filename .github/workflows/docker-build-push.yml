@@ -3,7 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [ main ]
-    workflow_dispatch:
+  workflow_dispatch:
   pull_request:
     types: [ closed ]
     branches: [ main ]
@@ -14,6 +14,10 @@ jobs:
     # Only run on merged PRs or direct pushes to main
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,17 +28,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
-      - name: Login to DockerHub
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/duckai
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=sha,format=short
             type=ref,event=branch
@@ -48,5 +53,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/duckai:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/duckai:buildcache,mode=max 
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
